@@ -45,31 +45,64 @@ document.querySelectorAll('.sidebar-links a').forEach(link => {
 // Form submission handling
 const contactForm = document.querySelector('.contact form');
 if (contactForm) {
-    contactForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        
+    contactForm.addEventListener('submit', function(e) {
         // Get form values
         const formData = new FormData(contactForm);
-        const data = Object.fromEntries(formData.entries());
-        
-        // Here you would typically send the data to a server
-        console.log('Form submitted:', data);
-        
-        // Show success message
         const submitButton = contactForm.querySelector('button');
-        submitButton.innerHTML = '<i class="fas fa-check"></i> Message Sent!';
-        submitButton.style.backgroundColor = '#4CAF50';
+        const originalButtonText = submitButton.innerHTML;
         
-        // Reset form after 3 seconds
-        setTimeout(() => {
-            contactForm.reset();
-            submitButton.innerHTML = 'Send Message';
-            submitButton.style.backgroundColor = '';
-        }, 3000);
+        // Show loading state
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        submitButton.disabled = true;
+
+        // Send data via Fetch API
+        fetch('contact.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            // Create a temporary div to parse the response
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = data;
+            
+            // Find success/error message in response
+            const responseMessage = tempDiv.querySelector('.success-message, .error-message');
+            
+            if (responseMessage) {
+                // Insert message before the form
+                contactForm.parentNode.insertBefore(responseMessage, contactForm);
+                
+                // Scroll to message
+                responseMessage.scrollIntoView({ behavior: 'smooth' });
+                
+                // If success, show confirmation
+                if (responseMessage.classList.contains('success-message')) {
+                    submitButton.innerHTML = '<i class="fas fa-check"></i> Message Sent!';
+                    submitButton.style.backgroundColor = '#4CAF50';
+                    contactForm.reset();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = '<h3>Error</h3><p>There was a problem sending your message. Please try again later.</p>';
+            contactForm.parentNode.insertBefore(errorDiv, contactForm);
+        })
+        .finally(() => {
+            // Reset button after 3 seconds
+            setTimeout(() => {
+                submitButton.innerHTML = originalButtonText;
+                submitButton.style.backgroundColor = '';
+                submitButton.disabled = false;
+            }, 3000);
+        });
     });
 }
 
-// Initialize AOS (Animate On Scroll)
+// Initialize AOS
 AOS.init({
     duration: 800,
     once: true,
