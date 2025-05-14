@@ -3,46 +3,62 @@
 $servername = "localhost"; 
 $username = "root";  
 $password = "Sanyam@2004";  
-$dbname = "porfolio";  
+$dbname = "portfolio";  // Fixed typo from 'porfolio' to 'portfolio'
 
+// Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
 
 // Check connection
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
-} else {
-    echo "Database connected successfully!<br>";
 }
 
 // Process form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $name = trim($_POST['name']);
-    $email = trim($_POST['email']);
-    $message = trim($_POST['message']);
+    // Initialize variables and sanitize inputs
+    $name = trim(htmlspecialchars($_POST['name'] ?? ''));
+    $email = trim(htmlspecialchars($_POST['email'] ?? ''));
+    $message = trim(htmlspecialchars($_POST['message'] ?? ''));
 
     // Input validation
-    if (empty($name) || empty($email) || empty($message)) {
-        echo "All fields are required!";
+    $errors = [];
+    if (empty($name)) {
+        $errors[] = "Name is required";
+    }
+    if (empty($email)) {
+        $errors[] = "Email is required";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = "Invalid email format";
+    }
+    if (empty($message)) {
+        $errors[] = "Message is required";
+    }
+
+    // If validation errors exist, display them
+    if (!empty($errors)) {
+        echo "<div class='error-message'>";
+        echo "<h3>Error:</h3>";
+        foreach ($errors as $error) {
+            echo "<p>- $error</p>";
+        }
+        echo "</div>";
         exit;
     }
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        echo "Invalid email format!";
-        exit;
-    }
-
-    // Insert data into the database
-    if (!$stmt = $conn->prepare("INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)")) {
+    // Prepare SQL statement
+    $sql = "INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    
+    if (!$stmt) {
         die("SQL Error: " . $conn->error);
     }
-    
+
+    // Bind parameters and execute
     $stmt->bind_param("sss", $name, $email, $message);
     
-    echo "Preparing to insert: Name: $name, Email: $email, Message: $message <br>";
-
     if ($stmt->execute()) {
-        echo "Message stored successfully!";
-
+        // Database operation successful
+        
         // Send email notification to yourself
         $to = "sanyamkudale@gmail.com"; 
         $subject = "New Contact Form Message from $name";
@@ -59,13 +75,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <h2>New Message from Your Portfolio Contact Form</h2>
             <p><strong>Name:</strong> $name</p>
             <p><strong>Email:</strong> $email</p>
-            <p><strong>Message:</strong><br> $message</p>
+            <p><strong>Message:</strong><br>". nl2br($message) ."</p>
             <br>
             <p>Reply directly to this email to respond.</p>
         </body>
         </html>";
 
-        mail($to, $subject, $email_body, $headers);
+        if (mail($to, $subject, $email_body, $headers)) {
+            echo "<div class='success-message'>";
+            echo "<h3>Thank You!</h3>";
+            echo "<p>Your message has been sent successfully. You'll receive a confirmation email shortly.</p>";
+            echo "</div>";
+        } else {
+            echo "<div class='warning-message'>";
+            echo "<h3>Message Saved</h3>";
+            echo "<p>Your message has been saved, but there was an issue sending the notification email.</p>";
+            echo "</div>";
+        }
 
         // Send confirmation email to the sender
         $confirm_subject = "Thank You for Contacting Me!";
@@ -81,7 +107,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <body>
             <h2>Hello $name,</h2>
             <p>Thank you for reaching out! I have received your message and will get back to you soon.</p>
-            <p><strong>Your Message:</strong> $message</p>
+            <p><strong>Your Message:</strong><br>". nl2br($message) ."</p>
             <br>
             <p>Best Regards,<br>Sanyam Kudale</p>
         </body>
@@ -89,10 +115,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         mail($email, $confirm_subject, $confirm_body, $confirm_headers);
     } else {
-        echo "Error inserting data: " . $stmt->error;
+        echo "<div class='error-message'>";
+        echo "<h3>Database Error</h3>";
+        echo "<p>Sorry, there was an error saving your message: " . $stmt->error . "</p>";
+        echo "</div>";
     }
 
     $stmt->close();
+} else {
+    // Not a POST request
+    header("Location: index.html"); // Redirect to your contact form
+    exit;
 }
 
 $conn->close();
