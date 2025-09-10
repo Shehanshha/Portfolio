@@ -163,6 +163,31 @@ timelineCards.forEach(card => {
         year.style.borderRadius = '';
     });
 });
+// Toggle category expansion
+function toggleCategory(categoryId) {
+    const category = document.getElementById(categoryId);
+    const chevron = category.previousElementSibling.querySelector('.fa-chevron-down');
+    
+    category.classList.toggle('active');
+    
+    if (category.classList.contains('active')) {
+        chevron.style.transform = 'rotate(180deg)';
+    } else {
+        chevron.style.transform = 'rotate(0deg)';
+    }
+}
+
+// Initialize categories (optional: open first category by default)
+document.addEventListener('DOMContentLoaded', function() {
+    // Close all categories initially
+    const categories = document.querySelectorAll('.category-content');
+    categories.forEach(category => {
+        category.classList.remove('active');
+    });
+    
+    // Alternatively, open the first category by default
+    // toggleCategory('data-analysis');
+});
 
 function typeWriter(element, text, i = 0) {
     const nameStart = text.indexOf("Sanyam Kudale");
